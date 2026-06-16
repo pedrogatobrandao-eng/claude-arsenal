@@ -45,6 +45,9 @@ async function sendEmail(to, name, code) {
         <li>No campo <strong style="color:#e8e6e0;">"código de acesso"</strong>, cole: <strong style="color:#f97316;">${code}</strong></li>
         <li>Clique em <strong style="color:#e8e6e0;">authenticate</strong></li>
       </ol>
+      <div style="background:rgba(249,115,22,0.08);border:1px solid rgba(249,115,22,0.15);border-radius:8px;padding:14px;">
+        <p style="color:#fb923c;font-size:12px;margin:0;">⚠️ <strong>Guarde este código!</strong> Você precisará dele ao acessar de outro dispositivo.</p>
+      </div>
     </div>
     <div style="text-align:center;margin-bottom:32px;">
       <a href="https://claude-arsenal-umber.vercel.app" style="background:#f97316;color:#000;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;">⚡ ACESSAR O CURSO AGORA</a>
@@ -67,34 +70,26 @@ export default async function handler(req, res) {
 
   try {
     const body = req.body;
-    
-    // LOG COMPLETO para debug
-    console.log('KIWIFY PAYLOAD:', JSON.stringify(body));
-    
-    // Kiwify envia: body.status ou body.data.status
-    // Pode ser: 'paid', 'approved', 'complete', 'active'
-    const status = body?.data?.status || body?.status || body?.order_status || '';
-    console.log('STATUS DETECTADO:', status);
 
-    // Aceitar qualquer status positivo
+    // Kiwify usa order_status e Customer (C maiúsculo)
+    const status = body?.order_status || body?.data?.status || body?.status || '';
+    
     const validStatuses = ['paid', 'approved', 'complete', 'active', 'completed'];
     if (!validStatuses.includes(status.toLowerCase())) {
-      console.log('STATUS IGNORADO:', status);
       return res.status(200).json({ ok: true, msg: 'ignored: status=' + status });
     }
 
-    // Extrair email e nome — Kiwify pode enviar em vários formatos
-    const customer = body?.data?.customer || body?.customer || body?.buyer || {};
-    const email = customer.email || body?.data?.email || body?.email || body?.buyer_email || '';
-    const name = customer.name || body?.data?.name || body?.name || body?.buyer_name || 'Aluno';
-    const firstName = name.split(' ')[0];
+    // Kiwify envia Customer com C maiúsculo!
+    const customer = body?.Customer || body?.customer || body?.data?.customer || {};
+    const email = customer.email || customer.Email || '';
+    const name = customer.first_name || customer.full_name || customer.name || 'Aluno';
 
-    console.log('EMAIL:', email, 'NOME:', firstName);
+    console.log(`EMAIL: ${email} | NOME: ${name} | STATUS: ${status}`);
 
     if (!email) return res.status(400).json({ error: 'No email found' });
 
     const code = generateCode();
-    const sent = await sendEmail(email, firstName, code);
+    const sent = await sendEmail(email, name, code);
 
     if (!sent) return res.status(500).json({ error: 'Failed to send email' });
 
